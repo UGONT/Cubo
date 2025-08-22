@@ -1,63 +1,94 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Cubo Rubik 3D</title>
-    <script type="module">
-        import { TwistyPlayer } from "https://cdn.cubing.net/js/cubing/twisty";
+  <meta charset="UTF-8" />
+  <title>Cubo Rubik 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        let player;
+  <!-- Registra el web component <twisty-player> -->
+  <script src="https://cdn.cubing.net/v0/js/cubing/twisty" type="module"></script>
 
-        window.onload = () => {
-            // Crear cubo
-            player = new TwistyPlayer({
-                puzzle: "3x3x3",
-                hintFacelets: "none",  // no hints
-                background: "checkered", // fondo cuadriculado
-                controlPanel: "none" // oculta controles
-            });
-            document.getElementById("viewer").appendChild(player);
-        };
-
-        // Función para aplicar movimientos
-        window.moverCubo = function (move) {
-            player.experimentalAddMoves(move);
-        };
-    </script>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background: #111;
-            color: white;
-            font-family: sans-serif;
-        }
-
-        #viewer {
-            width: 400px;
-            height: 400px;
-        }
-
-        button {
-            margin: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-    </style>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      display: grid; place-items: center; gap: 14px;
+      min-height: 100vh; margin: 0; background: #111; color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+    }
+    h1 { margin: 8px 0 0; font-weight: 600; font-size: 20px; opacity: .9; }
+    .panel { display: grid; gap: 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    button, input[type="text"] {
+      padding: 8px 12px; font-size: 15px; border-radius: 10px;
+      border: 1px solid #2a2a2a; background: #1a1a1a; color: white;
+    }
+    button { cursor: pointer; }
+    button:hover { background: #222; }
+    input[type="text"] { min-width: 260px; }
+    twisty-player { width: 400px; height: 400px; }
+  </style>
 </head>
-
 <body>
-    <h1>Cubo Rubik 3D</h1>
-    <div id="viewer"></div>
+  <h1>Cubo Rubik 3D</h1>
 
-    <!-- Botones de prueba -->
+  <!-- El reproductor (web component) -->
+  <twisty-player
+    id="player"
+    puzzle="3x3x3"
+    hint-facelets="none"
+    background="checkered"
+    control-panel="none">
+  </twisty-player>
 
+  <div class="panel">
+    <div class="row">
+      <button onclick="moverCubo('U')">U</button>
+      <button onclick="moverCubo(`U'`)">U'</button>
+      <button onclick="moverCubo('R')">R</button>
+      <button onclick="moverCubo(`R'`)">R'</button>
+      <button onclick="moverCubo('L')">L</button>
+      <button onclick="moverCubo(`L'`)">L'</button>
+      <button onclick="moverCubo('F')">F</button>
+      <button onclick="moverCubo(`F'`)">F'</button>
+      <button onclick="moverCubo('B')">B</button>
+      <button onclick="moverCubo(`B'`)">B'</button>
+      <button onclick="moverCubo('D')">D</button>
+      <button onclick="moverCubo(`D'`)">D'</button>
+    </div>
+
+    <div class="row">
+      <input id="algInput" type="text" placeholder="Escribe un alg: ej. R U R' U'" />
+      <button onclick="moverCubo(document.getElementById('algInput').value)">Aplicar</button>
+      <button onclick="resetCubo()">Reset</button>
+      <button onclick="reemplazarAlg('R U R\\' U\\'')">Ejemplo R U R' U'</button>
+    </div>
+  </div>
+
+  <script>
+    // Mantén tú el historial: no leas player.alg (eso lanza error)
+    let algHistory = "";
+    const playerEl = document.getElementById("player");
+
+    // Acumula movimientos y actualiza el atributo "alg"
+    window.moverCubo = (moves) => {
+      if (!moves) return;
+      algHistory = (algHistory + " " + moves).trim();
+      playerEl.setAttribute("alg", algHistory);
+      playerEl.play?.(); // opcional (experimental) para animar
+    };
+
+    // Reemplaza por un algoritmo específico (sin acumular)
+    window.reemplazarAlg = (moves) => {
+      algHistory = (moves || "").trim();
+      playerEl.setAttribute("alg", algHistory);
+      playerEl.play?.();
+    };
+
+    // Vuelve al estado resuelto
+    window.resetCubo = () => {
+      algHistory = "";
+      playerEl.setAttribute("alg", "");
+    };
+  </script>
 </body>
-
 </html>
