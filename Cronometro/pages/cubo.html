@@ -1,94 +1,66 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Cubo Rubik 3D</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Registra el web component <twisty-player> -->
-  <script src="https://cdn.cubing.net/v0/js/cubing/twisty" type="module"></script>
-
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      display: grid; place-items: center; gap: 14px;
-      min-height: 100vh; margin: 0; background: #111; color: #fff;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
-    }
-    h1 { margin: 8px 0 0; font-weight: 600; font-size: 20px; opacity: .9; }
-    .panel { display: grid; gap: 8px; }
-    .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-    button, input[type="text"] {
-      padding: 8px 12px; font-size: 15px; border-radius: 10px;
-      border: 1px solid #2a2a2a; background: #1a1a1a; color: white;
-    }
-    button { cursor: pointer; }
-    button:hover { background: #222; }
-    input[type="text"] { min-width: 260px; }
-    twisty-player { width: 400px; height: 400px; }
-  </style>
+<meta charset="UTF-8" />
+<title>Cubo Rubik 3D con WebSocket</title>
+<script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
+<style>
+body { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; background:#111; color:#fff; }
+twisty-player { width:400px; height:400px; }
+button { margin:4px; padding:8px 16px; border-radius:8px; border:none; background:#333; color:white; cursor:pointer; }
+button:hover { background:#555; }
+</style>
 </head>
 <body>
-  <h1>Cubo Rubik 3D</h1>
+<h1>Cubo Rubik 3D</h1>
 
-  <!-- El reproductor (web component) -->
-  <twisty-player
+<twisty-player
     id="player"
     puzzle="3x3x3"
     hint-facelets="none"
     background="checkered"
-    control-panel="none">
-  </twisty-player>
+    control-panel="none"
+    tempo-scale="20">
+</twisty-player>
 
-  <div class="panel">
-    <div class="row">
-      <button onclick="moverCubo('U')">U</button>
-      <button onclick="moverCubo(`U'`)">U'</button>
-      <button onclick="moverCubo('R')">R</button>
-      <button onclick="moverCubo(`R'`)">R'</button>
-      <button onclick="moverCubo('L')">L</button>
-      <button onclick="moverCubo(`L'`)">L'</button>
-      <button onclick="moverCubo('F')">F</button>
-      <button onclick="moverCubo(`F'`)">F'</button>
-      <button onclick="moverCubo('B')">B</button>
-      <button onclick="moverCubo(`B'`)">B'</button>
-      <button onclick="moverCubo('D')">D</button>
-      <button onclick="moverCubo(`D'`)">D'</button>
-    </div>
+<div>
+    <button onclick="resetCubo()">Reset</button>
+</div>
 
-    <div class="row">
-      <input id="algInput" type="text" placeholder="Escribe un alg: ej. R U R' U'" />
-      <button onclick="moverCubo(document.getElementById('algInput').value)">Aplicar</button>
-      <button onclick="resetCubo()">Reset</button>
-      <button onclick="reemplazarAlg('R U R\\' U\\'')">Ejemplo R U R' U'</button>
-    </div>
-  </div>
+<script>
+const playerEl = document.getElementById("player");
+let algHistory = "";
 
-  <script>
-    // Mantén tú el historial: no leas player.alg (eso lanza error)
-    let algHistory = "";
-    const playerEl = document.getElementById("player");
+// Función para mover el cubo
+function moverCubo(moves) {
+    if (!moves) return;
+    algHistory = (algHistory + " " + moves).trim();
+    playerEl.setAttribute("alg", algHistory);
+    playerEl.play?.();
+}
 
-    // Acumula movimientos y actualiza el atributo "alg"
-    window.moverCubo = (moves) => {
-      if (!moves) return;
-      algHistory = (algHistory + " " + moves).trim();
-      playerEl.setAttribute("alg", algHistory);
-      playerEl.play?.(); // opcional (experimental) para animar
-    };
+// Resetear cubo
+function resetCubo() {
+    algHistory = "";
+    playerEl.setAttribute("alg", "");
+}
 
-    // Reemplaza por un algoritmo específico (sin acumular)
-    window.reemplazarAlg = (moves) => {
-      algHistory = (moves || "").trim();
-      playerEl.setAttribute("alg", algHistory);
-      playerEl.play?.();
-    };
+// Conectar WebSocket
+const socket = new WebSocket("ws://127.0.0.1:8765");
 
-    // Vuelve al estado resuelto
-    window.resetCubo = () => {
-      algHistory = "";
-      playerEl.setAttribute("alg", "");
-    };
-  </script>
+
+socket.onopen = () => {
+    console.log("Conectado al servidor WebSocket");
+};
+
+socket.onmessage = (event) => {
+    const move = event.data;
+    console.log("Recibido movimiento:", move);
+    moverCubo(move);
+};
+
+socket.onclose = () => console.log("Desconectado del WebSocket");
+socket.onerror = (err) => console.error("WebSocket error:", err);
+</script>
 </body>
 </html>

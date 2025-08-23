@@ -4,3 +4,4 @@ cryptography==45.0.6
 dbus-fast==2.44.3
 pycparser==2.22
 pycryptodome==3.23.0
+websockets==15.0.1
