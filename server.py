@@ -109,8 +109,8 @@ async def main():
 
     def notification_handler(sender: int, data: bytearray):
         decrypted = decrypt_message(bytes(data))
-        print("🔹 RX enc :", data.hex())
-        print("🔹 RX dec :", decrypted.hex())
+        #print("🔹 RX enc :", data.hex())
+        #print("🔹 RX dec :", decrypted.hex())
         queue.put_nowait(decrypted)
 
     async with BleakClient(CUBE_MAC) as client:
@@ -136,11 +136,11 @@ async def main():
                         if len(decrypted) >= 36:
                             state = parse_cube_state(decrypted[7:34])
                             battery = decrypted[35]
-                            print(f"🔋 Battery: {battery}% | state_len={len(state)}")
+                            #print(f"🔋 Battery: {battery}% | state_len={len(state)}")
                         ack_full = build_ack_body_from_message(decrypted)
                         enc_ack = build_encrypted_message_from_body(ack_full[2:])
                         await client.write_gatt_char(CHAR_UUID, enc_ack, response=False)
-                        print("✅ ACK a Cube Hello enviado.")
+                       # print("✅ ACK a Cube Hello enviado.")
 
                     elif msg_type == 0x03:
                         move = decrypted[34] if len(decrypted) > 34 else None
@@ -148,19 +148,20 @@ async def main():
                         needs_ack = (len(decrypted) > 91 and decrypted[91] == 1)
                         if move and move in move_map:
                             movimiento = move_map[int(move)]
-                            print(f"↪️ Move={move} {movimiento} | 🔋={battery}% | needsAck={needs_ack}")
+                            #print(f"↪️ Move={move} {movimiento} | 🔋={battery}% | needsAck={needs_ack}")
+                            print(f"Letra =  {movimiento}, Bateria = {battery}%")
                             # 🔌 Enviar movimiento al WebSocket
                             asyncio.create_task(enviar_a_clientes(movimiento))
                         if needs_ack:
                             ack_full = build_ack_body_from_message(decrypted)
                             enc_ack = build_encrypted_message_from_body(ack_full[2:])
                             await client.write_gatt_char(CHAR_UUID, enc_ack, response=False)
-                            print("✅ ACK a State Change enviado.")
+                            #print("✅ ACK a State Change enviado.")
 
                     elif msg_type == 0x04:
                         if len(decrypted) >= 34:
                             state = parse_cube_state(decrypted[7:34])
-                            print(f"🔄 Sync state recibido | state_len={len(state)}")
+                            #print(f"🔄 Sync state recibido | state_len={len(state)}")
 
                 finally:
                     queue.task_done()
