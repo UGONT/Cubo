@@ -8,13 +8,8 @@ SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
 CHAR_UUID    = "0000fff6-0000-1000-8000-00805f9b34fb"
 
 # === Clave AES (misma que en el JS) ===
-AES_KEY = bytes([87, 177, 249, 171, 205, 90, 232, 167,
+AES_KEY = bytes([87, 177, 249, 171, 205, 90, 232, 167, 
                  156, 185, 140, 231, 87, 140, 81, 8])
-
-# ====== Utilidades criptográficas / protocolo (1:1 con el JS) ======
-
-
-
 
 # ==== Diccionario de movimientos ======
 
@@ -33,9 +28,10 @@ move_map = {
     12:"B",
 } 
 
+# ====== Utilidades criptográficas / protocolo (1:1 con el JS) ======
 
 def encrypt_message(raw: bytes) -> bytes:
-    """AES-ECB con padding de 0x00 a múltiplos de 16 (igual al JS)."""
+    """AES-ECB con padding de 0x00 a múltiplos de 16."""
     if len(raw) % 16 != 0:
         raw = raw + bytes(16 - (len(raw) % 16))
     aes = AES.new(AES_KEY, AES.MODE_ECB)
@@ -45,7 +41,7 @@ def encrypt_message(raw: bytes) -> bytes:
     return bytes(out)
 
 def decrypt_message(enc: bytes) -> bytes:
-    """AES-ECB bloque a bloque (igual al JS)."""
+    """AES-ECB bloque a bloque ."""
     aes = AES.new(AES_KEY, AES.MODE_ECB)
     out = bytearray()
     for i in range(0, len(enc), 16):
@@ -53,7 +49,7 @@ def decrypt_message(enc: bytes) -> bytes:
     return bytes(out)
 
 def crc16_modbus(data: bytes) -> int:
-    """CRC16-Modbus (idéntico al JS)."""
+    """CRC16-Modbus."""
     crc = 0xFFFF
     for b in data:
         crc ^= b
@@ -69,7 +65,6 @@ def build_app_hello(mac_reversed: bytes) -> bytes:
     """
     App Hello body (sin 0xFE/len/CRC): 19 bytes.
     Primeros 11 = 0x00, luego la MAC invertida (6 bytes), y quedan 2 bytes en 0x00.
-    Igual que buildAppHello(macReversed) del JS.
     """
     data = bytearray(19)
     # 0..10 ya son 0x00
@@ -78,9 +73,8 @@ def build_app_hello(mac_reversed: bytes) -> bytes:
 
 def build_ack_body_from_message(decrypted: bytes) -> bytes:
     """
-    Versión Python de buildAckBodyFromMessage:
     Toma decrypted, arma un paquete ACK completo (0xFE, len=9, head, CRC).
-    OJO: Igual que en el JS, luego enviaremos ack[2:] a send_encrypted().
+    luego enviaremos ack[2:] a send_encrypted().
     """
     ack_head = decrypted[2:7]  # 5 bytes
     ack = bytearray(7)
@@ -96,8 +90,8 @@ def build_ack_body_from_message(decrypted: bytes) -> bytes:
 
 def build_encrypted_message_from_body(body: bytes) -> bytes:
     """
-    Versión Python de sendEncrypted(bytes) del JS, pero devuelve los bytes cifrados.
-    - len = body.length + 2  (igual que el JS)
+    Devuelve los bytes cifrados.
+    - len = body.length + 2  
     - msg = [0xFE, len, body..., CRC_lo, CRC_hi] y luego se rellena a múltiplo de 16 con 0x00
     - se encripta todo
     """
@@ -109,9 +103,6 @@ def build_encrypted_message_from_body(body: bytes) -> bytes:
     msg[2:2+len(body)] = body
     # CRC sobre msg[0: length-2] (igual que JS)
     crc = crc16_modbus(msg[:length-2])
-    # Colocación exacta igual al JS:
-    # En el JS ponen msg[len-2] y msg[len-1]; replicamos tal cual.
-    # (Sí, parece raro, pero estamos copiando el comportamiento 1:1)
     msg[length-2] = crc & 0xFF
     msg[length-1] = (crc >> 8) & 0xFF
     # cifrar con padding a múltiplo de 16
@@ -119,7 +110,7 @@ def build_encrypted_message_from_body(body: bytes) -> bytes:
 
 def parse_cube_state(raw27to54: bytes):
     """
-    Igual que parseCubeState del JS: 27 bytes => 54 nibbles (colores 0..5).
+    27 bytes => 54 nibbles (colores 0..5).
     raw27to54 debería ser decrypted[7:34] según los mensajes 0x02/0x03/0x04.
     """
     colors = []
@@ -131,7 +122,7 @@ def parse_cube_state(raw27to54: bytes):
 # ====== Lógica BLE ======
 
 async def main():
-    # Prepara MAC invertida (igual que en el HTML cuando la piden y la invierten)
+    # Prepara MAC invertida 
     mac_bytes = bytes(int(h, 16) for h in CUBE_MAC.split(":"))
     mac_reversed = mac_bytes[::-1]
 
@@ -151,7 +142,7 @@ async def main():
         await client.start_notify(CHAR_UUID, notification_handler)
         print("📡 Notificaciones activadas en FFF6.")
 
-        # === Enviar App Hello (igual que el HTML) ===
+        # === Enviar App Hello ===
         app_hello_body = build_app_hello(mac_reversed)
         enc = build_encrypted_message_from_body(app_hello_body)
         await client.write_gatt_char(CHAR_UUID, enc, response=False)
@@ -174,7 +165,7 @@ async def main():
                             print(f"🔋 Battery: {battery}% | state_len={len(state)}")
                         # ACK obligatorio
                         ack_full = build_ack_body_from_message(decrypted)
-                        enc_ack = build_encrypted_message_from_body(ack_full[2:])  # igual que JS (ack.slice(2))
+                        enc_ack = build_encrypted_message_from_body(ack_full[2:])  
                         await client.write_gatt_char(CHAR_UUID, enc_ack, response=False)
                         print("✅ ACK a Cube Hello enviado.")
 
@@ -185,7 +176,7 @@ async def main():
                         battery = decrypted[35] if len(decrypted) > 35 else None
                         needs_ack = (len(decrypted) > 91 and decrypted[91] == 1)
                         print(f"↪️ Move={move} {move_map[int(move)]} | 🔋={battery}% | needsAck={needs_ack}")
-                        # (Opcional) también puedes parsear y usar parse_cube_state(decrypted[7:34])
+                        
                         if needs_ack:
                             ack_full = build_ack_body_from_message(decrypted)
                             enc_ack = build_encrypted_message_from_body(ack_full[2:])
@@ -204,7 +195,7 @@ async def main():
         # Lanza procesador de mensajes
         task = asyncio.create_task(processor())
 
-        # Mantener el programa vivo (Ctrl+C para salir)
+        # Mantener el programa vivo 
         try:
             await asyncio.sleep(3600)
         finally:
