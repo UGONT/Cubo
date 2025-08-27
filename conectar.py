@@ -2,6 +2,7 @@ import asyncio
 from bleak import BleakClient
 from Crypto.Cipher import AES
 
+###              CC:A3:00:00:88:D4
 # === Config de tu cubo ===
 CUBE_MAC = "CC:A3:00:00:88:D4"
 SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
