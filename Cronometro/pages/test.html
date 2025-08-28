@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generador de Scrambles</title>
+    <script type="module">
+        import { randomScrambleForEvent } from "https://cdn.cubing.net/v0/js/cubing/scramble";
+
+        async function generarYMostrarScramble() {
+            const scramble = await randomScrambleForEvent("333");
+            document.getElementById("scramble").textContent = scramble.toString();
+        }
+
+        // Generar al cargar la página
+        generarYMostrarScramble();
+
+        // Y cada vez que se haga clic en un botón, por ejemplo
+        document.getElementById("btnNuevo").addEventListener("click", generarYMostrarScramble);
+    </script>
+</head>
+<body>
+    <h1>Scramble para 3x3x3</h1>
+    <p id="scramble">Generando scramble...</p>
+    <button id="btnNuevo">Nuevo scramble</button>
+</body>
+</html>

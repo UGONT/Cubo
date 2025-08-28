@@ -164,13 +164,43 @@
       11: "B'", 12: "B",
     };
 
+    // =================================//
+
+    
     // === Función para mover cubo 3D ===
+    let colaMovimientos = [];
+    let ejecutando = false;
+    
     function moverCubo(move) {
       if (!move) return;
+    
+      colaMovimientos.push(move);
+      if (!ejecutando) {
+        procesarCola();
+      }
+    }
+    
+    function procesarCola() {
+      if (colaMovimientos.length === 0) {
+        ejecutando = false;
+        return;
+      }
+      ejecutando = true;
+    
+      const move = colaMovimientos.shift();
       algHistory = (algHistory + " " + move).trim();
       playerEl.setAttribute("alg", algHistory);
       playerEl.play?.();
+    
+      // Esperar un tiempo antes de disparar el siguiente movimiento
+      const delayMs = 200; // Ajusta según ritmo deseado (100–300 ms funciona bien)
+      setTimeout(procesarCola, delayMs);
     }
+    
+    
+
+    //======================================//
+    
 
     function resetCubo() {
       algHistory = "";
