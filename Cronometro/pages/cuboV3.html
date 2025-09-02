@@ -10,15 +10,38 @@
   <script type="module">
     import { randomScrambleForEvent } from "https://cdn.cubing.net/v0/js/cubing/scramble";
 
-    window.obtenerScramble = async function() {
+    window.obtenerScramble = async function () {
       const scramble = await randomScrambleForEvent("333");
-      const scrambleStr = scramble.toString();
-      const expanded = scrambleStr.replace(/([UDLRFB])2/g, "$1 $1"); // U2 → U U
-      window.scrambleMoves = expanded.split(" ");
+      const s = scramble.toString();
+    
+      // Expande X2 -> X X para compararlo con lo que envía el cubo
+      const expanded = s.replace(/([UDLRFB])2/g, "$1 $1");
+    
+      window.scrambleMoves = expanded.trim().split(/\s+/);
       window.scrambleIndex = 0;
-      actualizarScrambleUI();
-      document.getElementById("scramble").textContent = scrambleStr;
-    }
+      window.lastError = false;
+    
+      document.getElementById("scramble").textContent = s;
+    
+      if (window.actualizarScrambleUI) window.actualizarScrambleUI();
+    };
+
+    window.actualizarScrambleUI = function () {
+      const cont = document.getElementById("scrambleProgress");
+      cont.innerHTML = "";
+    
+      const moves = window.scrambleMoves || [];
+      const idx = window.scrambleIndex || 0;
+    
+      moves.forEach((m, i) => {
+        const span = document.createElement("span");
+        span.textContent = m;
+        if (i < idx) span.classList.add("done");
+        if (i === idx) span.classList.add(window.lastError ? "error" : "current");
+        cont.appendChild(span);
+      });
+    };
+    
 
     window.obtenerScramble();
     document.getElementById("nuevoScramble").addEventListener("click", window.obtenerScramble);
@@ -67,20 +90,16 @@
       border-radius: 4px;
     }
 
-    #scramble .done {
-      background: #28a745;
-      color: #fff;
+    #scrambleProgress span {
+      padding: 4px;
+      margin: 2px;
+      display: inline-block;
+      border-radius: 4px;
     }
-
-    #scramble .current {
-      background: #ffc107;
-      color: #000;
-    }
-
-    #scramble .error {
-      background: #dc3545;
-      color: #fff;
-    }
+    #scrambleProgress .done { background: #28a745; color: #fff; }
+    #scrambleProgress .current { background: #ffc107; color: #000; }
+    #scrambleProgress .error { background: #dc3545; color: #fff; }
+    
   </style>
 </head>
 
@@ -95,24 +114,26 @@
     <p id="scramble">Cargando...</p>
     <div id="scrambleProgress" class="scramble-progress"></div>
     <button class="btn btn-primary" id="nuevoScramble">Nuevo scramble</button>
-    <button class="btn btn-primary" id="start">Empezar</button>
-    <button class="btn btn-primary" id="stop">detener</button>
+
   </div>
   
   <div id="log"></div>
 
   <script>
-  	document.getElementById("start").addEventListener("click", iniciarCronometro);
-    document.getElementById("stop").addEventListener("click", detenerCronometro);
+  
   // ===== Variables del cronómetro =====
       let cronometroInterval, tiempoInicio, corriendo = false;
       let scrambleMoves = [], scrambleIndex = 0;
+      let detenerEnProximoAck = false;
+      let inspeccionInterval, inspeccionRestante = 15, enInspeccion = false;
+      
   
       function iniciarCronometro() {
         if (corriendo) return;
         tiempoInicio = Date.now();
         cronometroInterval = setInterval(actualizarCronometro, 10);
         corriendo = true;
+		detenerEnProximoAck = true;
       }
       function detenerCronometro() {
         clearInterval(cronometroInterval);
@@ -126,18 +147,43 @@
         document.getElementById("cronometro").textContent =
           `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${cs.toString().padStart(2,'0')}`;
       }
-  
-      function actualizarScrambleUI() {
-        const cont = document.getElementById("scrambleProgress");
-        cont.innerHTML = "";
-        scrambleMoves.forEach((m, i) => {
-          const span = document.createElement("span");
-          span.textContent = m;
-          if (i < scrambleIndex) span.classList.add("done");
-          if (i === scrambleIndex && window.lastError) span.classList.add("error");
-          cont.appendChild(span);
-        });
+
+      function iniciarInspeccion() {
+        detenerCronometro(); // por si acaso
+        inspeccionRestante = 15;
+        enInspeccion = true;
+        document.getElementById("cronometro").textContent = `15`;
+        inspeccionInterval = setInterval(() => {
+          inspeccionRestante--;
+          document.getElementById("cronometro").textContent = inspeccionRestante;
+          if (inspeccionRestante <= 0) {
+            clearInterval(inspeccionInterval);
+            enInspeccion = false;
+            iniciarInspeccion(); 
+          }
+        }, 1000);
       }
+      
+      function cancelarInspeccionYEmpezar() {
+        if (enInspeccion) {
+          clearInterval(inspeccionInterval);
+          enInspeccion = false;
+          iniciarCronometro();
+        }
+      }
+      
+
+   
+
+       document.getElementById("nuevoScramble").addEventListener("click", () => {
+         detenerCronometro();
+         window.scrambleIndex = 0;
+         window.lastError = false;
+         if (window.actualizarScrambleUI) window.actualizarScrambleUI();
+       });
+       
+  
+      
 
   	//============= LOGICA CONECTAR CUBO =================// NO MODIFICAR //
   	
@@ -231,9 +277,13 @@
     async function sendAck(decrypted) {
       const ack = buildAckBodyFromMessage(decrypted);
       await sendEncrypted(ack.slice(2));
-      detenerCronometro();
-      log("✅ ACK sent");
       
+      log("✅ ACK sent");
+
+      if (detenerEnProximoAck && corriendo) {
+          detenerCronometro();
+          detenerEnProximoAck = false;
+        }
     }
 
     // === Diccionario movimientos ===
@@ -273,6 +323,26 @@
             const moveStr = moveMap[move];
             log("↪️ Move=" + move + " (" + moveStr + ") | 🔋=" + battery + "%");
 
+          if (enInspeccion) {
+            cancelarInspeccionYEmpezar(); // si se mueve antes de terminar inspección
+          }
+			
+		  // --- Seguimiento del scramble ---
+		  const moves = window.scrambleMoves || [];
+		  let idx = window.scrambleIndex || 0;
+
+		  const esperado = moves[idx];
+		  if (esperado && moveStr === esperado) {
+		    window.lastError = false;
+		    idx += 1;
+		    window.scrambleIndex = idx;
+
+		    // Cuando completes TODO el scramble, inicia el cronómetro
+		    if (idx === moves.length && !corriendo) iniciarCronometro();
+		  } else {
+		    window.lastError = true; // marca error en el paso actual
+		  }
+		  if (window.actualizarScrambleUI) window.actualizarScrambleUI();
 
             if (decrypted[91] === 1) await sendAck(decrypted);
 
@@ -285,7 +355,7 @@
         log("📡 Notifications started.");
 
         // pedir MAC para enviar App Hello
-        const macStr = prompt("Introduce MAC del cubo (ej: CC:A3:00:00:25:13)","CC:A3:00:00:88:D4");
+        const macStr = "CC:A3:00:00:88:D4" //prompt("Introduce MAC del cubo (ej: CC:A3:00:00:25:13)","CC:A3:00:00:88:D4");
         const mac = macStr.split(":").map(h => parseInt(h, 16)).reverse();
         const appHello = buildAppHello(mac);
         await sendEncrypted(appHello);
