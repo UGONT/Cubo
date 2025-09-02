@@ -114,6 +114,8 @@
     <p id="scramble">Cargando...</p>
     <div id="scrambleProgress" class="scramble-progress"></div>
     <button class="btn btn-primary" id="nuevoScramble">Nuevo scramble</button>
+    <button class="btn btn-primary" id="start">start</button>
+    <button class="btn btn-primary" id="stop">stop</button>
 
   </div>
   
@@ -171,8 +173,9 @@
           iniciarCronometro();
         }
       }
-      
 
+      document.getElementById("start").addEventListener("click", iniciarCronometro); 
+	  document.getElementById("stop").addEventListener("click", detenerCronometro);
    
 
        document.getElementById("nuevoScramble").addEventListener("click", () => {
@@ -181,6 +184,17 @@
          window.lastError = false;
          if (window.actualizarScrambleUI) window.actualizarScrambleUI();
        });
+
+       document.addEventListener("keydown", (e) => {
+       	if (e.code == "Space") {
+			detenerCronometro();
+	        window.scrambleIndex = 0;
+	        window.lastError = false;
+	        if (window.actualizarScrambleUI) window.actualizarScrambleUI();
+       		};
+       	});
+	         
+   
        
   
       
